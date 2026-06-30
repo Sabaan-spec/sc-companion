@@ -502,6 +502,9 @@ async function ensureComm(){
   });
   const map={};
   Object.keys(agg).forEach(n=>{const a=agg[n];map[n.toLowerCase()]={buy:isFinite(a.buy)?a.buy:0,sell:a.sell,name:n};});
+  // aliases: in-game spelling -> UEX spelling
+  const alias={'quantanium':'quantainium'};
+  Object.keys(alias).forEach(k=>{ if(map[alias[k]]&&!map[k]) map[k]=map[alias[k]]; });
   cache.comm=map; return map;
 }
 async function autofillPrices(){
@@ -542,7 +545,13 @@ async function ensureShips(){
   setStat('s_status',all.length+' ships available');
   return all;
 }
-function matchShip(list,q){q=q.toLowerCase().trim();return list.find(s=>s.name.toLowerCase()===q)||list.find(s=>s.name.toLowerCase().includes(q));}
+function matchShip(list,q){
+  q=q.toLowerCase().trim();
+  const toks=q.split(/\s+/).filter(Boolean);
+  return list.find(s=>s.name.toLowerCase()===q)
+    || list.find(s=>s.name.toLowerCase().includes(q))
+    || list.find(s=>{const n=s.name.toLowerCase();return toks.length>1&&toks.every(t=>n.includes(t));});
+}
 async function addShipFromWeb(){
   try{const list=await ensureShips();const q=document.getElementById('shipSearch').value;
     if(!q){setStat('s_status','Type a ship name first');return;}
