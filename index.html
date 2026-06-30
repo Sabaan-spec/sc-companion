@@ -151,10 +151,11 @@ footer a{color:var(--cyan-dim);text-decoration:none}
         <tbody></tbody>
       </table>
       </div>
+      <button class="btn amber" onclick="autoBuildRoutes()">&#9889; Auto-build routes (UEX)</button>
+      <button class="btn" onclick="autofillPrices()">&#8635; Prices only</button>
       <button class="btn" onclick="addTrade()">+ Add Route</button>
-      <button class="btn amber" onclick="autofillPrices()">&#8635; Auto-fill prices (UEX live)</button>
       <span id="t_status" class="webstat"></span>
-      <p class="hint">1 SCU = 100 units. Units are capped by capital / buy price and cargo x 100. Auto-fill pulls the best buy/sell across all terminals from UEX. Also verify via
+      <p class="hint">1 SCU = 100 units. Units are capped by capital / buy price and cargo x 100. <b>Auto-build routes</b> loads the 30 best commodities live from UEX with the cheapest buy terminal and priciest sell terminal as locations. <b>Prices only</b> fills prices into your current rows. Also verify via
         <a href="https://uexcorp.space/" target="_blank">UEX Corp</a>, <a href="https://sc-trade.tools/" target="_blank">SC-Trade</a> or <a href="https://hubcitizen.com/commodities" target="_blank">HubCitizen</a>.</p>
     </div>
   </section>
@@ -518,6 +519,39 @@ async function autofillPrices(){
     });
     calcTrade();
     setStat('t_status',hit+' matched · best buy/sell across terminals · UEX '+new Date().toLocaleTimeString());
+  }catch(e){ setStat('t_status','Error: '+e.message); }
+}
+
+/* Full routes: commodity + cheapest buy terminal + priciest sell terminal, live from UEX */
+async function ensureRoutes(){
+  if(cache.routes)return cache.routes;
+  setStat('t_status','Building routes from UEX…');
+  const [cr,tr,pr]=await Promise.all([
+    fetch('https://api.uexcorp.space/2.0/commodities').then(r=>r.json()),
+    fetch('https://api.uexcorp.space/2.0/terminals').then(r=>r.json()),
+    fetch('https://api.uexcorp.space/2.0/commodities_prices_all').then(r=>r.json())
+  ]);
+  const cName={}; (cr.data||[]).forEach(c=>cName[c.id]=c.name);
+  const tName={}; (tr.data||[]).forEach(t=>tName[t.id]=t.nickname||t.name||t.code||('Term '+t.id));
+  const best={};
+  (pr.data||[]).forEach(p=>{
+    const b=best[p.id_commodity]||(best[p.id_commodity]={buy:null,sell:null});
+    if(p.price_buy>0&&(!b.buy||p.price_buy<b.buy.price))b.buy={price:p.price_buy,term:tName[p.id_terminal]||'?'};
+    if(p.price_sell>0&&(!b.sell||p.price_sell>b.sell.price))b.sell={price:p.price_sell,term:tName[p.id_terminal]||'?'};
+  });
+  const routes=[];
+  Object.keys(best).forEach(id=>{const b=best[id];if(b.buy&&b.sell&&cName[id]&&b.sell.price>b.buy.price)routes.push({name:cName[id],buyTerm:b.buy.term,buyPrice:b.buy.price,sellTerm:b.sell.term,sellPrice:b.sell.price,margin:b.sell.price-b.buy.price});});
+  routes.sort((a,b)=>b.margin-a.margin);
+  cache.routes=routes; return routes;
+}
+async function autoBuildRoutes(){
+  try{
+    const routes=await ensureRoutes();
+    const top=routes.slice(0,30);
+    const tb=document.querySelector('#t_tbl tbody'); tb.innerHTML='';
+    top.forEach(r=>tb.appendChild(tradeRow([r.name,r.buyTerm,r.buyPrice,r.sellTerm,r.sellPrice])));
+    calcTrade();
+    setStat('t_status',top.length+' routes (of '+routes.length+') · cheapest buy / priciest sell terminal · UEX '+new Date().toLocaleTimeString());
   }catch(e){ setStat('t_status','Error: '+e.message); }
 }
 
