@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>mobiGlas // SC Companion</title>
+<style>
+:root{
+  --bg:#04080f; --panel:#0a1622; --panel2:#0d1c2b; --line:#16465c;
+  --cyan:#22d3ee; --cyan-dim:#0e7c93; --amber:#ff8a1e; --amber-dim:#a8520d;
+  --text:#cfe9f2; --muted:#5e7e8c; --good:#3ddc84; --bad:#ff5d6c;
+  --grid:rgba(34,211,238,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'Segoe UI',Roboto,system-ui,sans-serif;
+  background:
+    radial-gradient(900px 500px at 80% -10%, rgba(255,138,30,.10), transparent 60%),
+    radial-gradient(1100px 700px at 10% 0%, rgba(34,211,238,.12), transparent 55%),
+    var(--bg);
+  color:var(--text); min-height:100vh; overflow-x:hidden;
+}
+.stars{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+   radial-gradient(1px 1px at 20% 30%, #fff7, transparent),
+   radial-gradient(1px 1px at 60% 70%, #fff5, transparent),
+   radial-gradient(1px 1px at 80% 20%, #fff6, transparent),
+   radial-gradient(1px 1px at 35% 80%, #fff4, transparent),
+   radial-gradient(2px 2px at 50% 50%, #22d3ee44, transparent);
+  background-size:300px 300px,250px 250px,400px 400px,350px 350px,500px 500px;
+  opacity:.5;}
+.wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 18px 60px}
+header{display:flex;align-items:center;gap:16px;padding:22px 0 14px}
+.logo{display:flex;align-items:center;gap:13px}
+.diamond{width:34px;height:34px;border:2px solid var(--cyan);transform:rotate(45deg);
+  display:grid;place-items:center;box-shadow:0 0 16px var(--cyan-dim) inset,0 0 12px #22d3ee55}
+.diamond i{width:10px;height:10px;background:var(--amber);transform:rotate(0);box-shadow:0 0 10px var(--amber)}
+.brand h1{font-size:18px;letter-spacing:5px;font-weight:700}
+.brand h1 b{color:var(--cyan)}
+.brand .sub{font-size:10px;letter-spacing:4px;color:var(--muted);text-transform:uppercase}
+.status{margin-left:auto;text-align:right;font-size:11px;color:var(--muted);letter-spacing:2px;font-family:'Consolas',monospace}
+.status .live{color:var(--good)}
+.hudline{height:2px;background:linear-gradient(90deg,transparent,var(--cyan),var(--amber),transparent);opacity:.7;margin-bottom:8px}
+nav.tabs{display:flex;flex-wrap:wrap;gap:6px;margin:18px 0 22px}
+.tab{appearance:none;background:var(--panel);color:var(--muted);border:1px solid var(--line);
+  padding:11px 18px;letter-spacing:2px;font-size:12px;text-transform:uppercase;cursor:pointer;
+  clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
+  transition:.15s;font-weight:600}
+.tab:hover{color:var(--text);border-color:var(--cyan-dim)}
+.tab.active{color:#04080f;background:linear-gradient(180deg,var(--cyan),var(--cyan-dim));border-color:var(--cyan);
+  box-shadow:0 0 18px #22d3ee55}
+.panel{display:none;animation:fade .25s ease}
+.panel.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+  padding:18px 18px 22px;margin-bottom:18px;position:relative;
+  clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px))}
+.card::before{content:"";position:absolute;inset:0;background-image:
+  linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:22px 22px;pointer-events:none}
+.card h2{font-size:14px;letter-spacing:3px;text-transform:uppercase;color:var(--cyan);margin-bottom:4px;position:relative}
+.card .desc{font-size:12px;color:var(--muted);margin-bottom:16px;position:relative}
+.tag{display:inline-block;font-size:10px;letter-spacing:2px;color:var(--amber);border:1px solid var(--amber-dim);
+  padding:2px 8px;margin-bottom:14px;text-transform:uppercase}
+.io{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:18px;position:relative}
+.field{flex:1;min-width:150px}
+.field label{display:block;font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:5px}
+input,select{width:100%;background:#06121c;border:1px solid var(--line);color:var(--cyan);
+  padding:9px 10px;font-family:'Consolas',monospace;font-size:13px;outline:none;transition:.15s}
+input:focus,select:focus{border-color:var(--cyan);box-shadow:0 0 10px #22d3ee44}
+input[type=text]{color:var(--text)}
+.tbl{width:100%;border-collapse:collapse;position:relative;font-size:12.5px}
+.tbl th{background:#06121c;color:var(--cyan);text-transform:uppercase;letter-spacing:1.5px;font-size:10px;
+  padding:9px 8px;text-align:left;border-bottom:2px solid var(--line);white-space:nowrap;cursor:default}
+.tbl th[data-s]{cursor:pointer}
+.tbl td{padding:5px 8px;border-bottom:1px solid #0e2535}
+.tbl tr:hover td{background:#0a1c2a}
+.tbl input{padding:6px 7px;font-size:12px}
+.num{text-align:right}
+.calc{color:var(--text);font-family:'Consolas',monospace;text-align:right}
+.best{color:var(--good)!important;font-weight:700;text-shadow:0 0 8px #3ddc8466}
+.total td{border-top:2px solid var(--line);border-bottom:none;padding-top:12px;font-weight:700}
+.total .lbl{color:var(--amber);letter-spacing:2px;text-transform:uppercase;font-size:11px}
+.total .val{font-size:15px;color:var(--good);font-family:'Consolas',monospace;text-align:right}
+.btn{background:transparent;border:1px solid var(--cyan-dim);color:var(--cyan);padding:8px 16px;
+  letter-spacing:2px;font-size:11px;text-transform:uppercase;cursor:pointer;transition:.15s;margin-top:12px}
+.btn:hover{background:var(--cyan);color:#04080f}
+.btn.amber{border-color:var(--amber-dim);color:var(--amber)}
+.btn.amber:hover{background:var(--amber);color:#04080f}
+.del{color:var(--bad);cursor:pointer;font-weight:700;text-align:center;user-select:none}
+.del:hover{text-shadow:0 0 8px var(--bad)}
+.tiersel.S{color:#ff6ec7}.tiersel.A{color:var(--amber)}.tiersel.B{color:var(--cyan)}.tiersel.C{color:var(--muted)}.tiersel.D{color:#3b5563}
+.hint{font-size:11px;color:var(--muted);margin-top:14px;position:relative;line-height:1.6}
+.hint a{color:var(--cyan);text-decoration:none}.hint a:hover{text-decoration:underline}
+.kpi{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px}
+.kpibox{flex:1;min-width:140px;background:#06121c;border:1px solid var(--line);padding:12px 14px}
+.kpibox .k{font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase}
+.kpibox .v{font-size:20px;font-family:'Consolas',monospace;color:var(--good);margin-top:4px}
+footer{text-align:center;color:var(--muted);font-size:11px;letter-spacing:2px;margin-top:30px;line-height:1.8}
+footer a{color:var(--cyan-dim);text-decoration:none}
+::-webkit-scrollbar{height:8px;width:8px}::-webkit-scrollbar-thumb{background:var(--line)}
+.scrollx{overflow-x:auto}
+</style>
+</head>
+<body>
+<div class="stars"></div>
+<div class="wrap">
+  <header>
+    <div class="logo">
+      <div class="diamond"><i></i></div>
+      <div class="brand">
+        <h1>MOBI<b>GLAS</b></h1>
+        <div class="sub">Citizen Companion Terminal</div>
+      </div>
+    </div>
+    <div class="status">
+      SYS <span class="live">&#9679; ONLINE</span><br>
+      <span id="clock">--:--:-- UTC</span>
+    </div>
+  </header>
+  <div class="hudline"></div>
+
+  <nav class="tabs">
+    <button class="tab active" data-p="trade">Trade Routes</button>
+    <button class="tab" data-p="mining">Mining</button>
+    <button class="tab" data-p="ships">Ships</button>
+    <button class="tab" data-p="loadout">Loadout / DPS</button>
+    <button class="tab" data-p="log">Run Log</button>
+  </nav>
+
+  <section class="panel active" id="trade">
+    <div class="card">
+      <span class="tag">Cargo Ops</span>
+      <h2>Trade Route Calculator</h2>
+      <p class="desc">Enter live buy/sell prices (from UEX / SC-Trade). Profit, total haul and aUEC/hour update instantly. Best route is highlighted.</p>
+      <div class="io">
+        <div class="field"><label>Cargo capacity (SCU)</label><input id="t_cargo" type="number" value="696"></div>
+        <div class="field"><label>Capital (aUEC)</label><input id="t_cap" type="number" value="5000000"></div>
+        <div class="field"><label>Round-trip (min)</label><input id="t_time" type="number" value="35"></div>
+      </div>
+      <div class="scrollx">
+      <table class="tbl" id="t_tbl">
+        <thead><tr>
+          <th>Commodity</th><th>Buy @</th><th>Buy/unit</th><th>Sell @</th><th>Sell/unit</th>
+          <th>Units</th><th>Profit/unit</th><th>Total profit</th><th>aUEC / hr</th><th></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      </div>
+      <button class="btn" onclick="addTrade()">+ Add Route</button>
+      <p class="hint">1 SCU = 100 units. Units are capped by capital / buy price and cargo x 100. Prices shift constantly &mdash; pull current numbers from
+        <a href="https://uexcorp.space/" target="_blank">UEX Corp</a>, <a href="https://sc-trade.tools/" target="_blank">SC-Trade</a> or <a href="https://hubcitizen.com/commodities" target="_blank">HubCitizen</a>.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="mining">
+    <div class="card">
+      <span class="tag">Extraction</span>
+      <h2>Mining / Refining Calculator</h2>
+      <p class="desc">Enter refined SCU mined and current refined sell price per unit. Gross and net-after-refining update live.</p>
+      <div class="io">
+        <div class="field"><label>Refining cost (aUEC)</label><input id="m_cost" type="number" value="25000"></div>
+      </div>
+      <div class="scrollx">
+      <table class="tbl" id="m_tbl">
+        <thead><tr>
+          <th>Material</th><th>Tier</th><th>Refined SCU</th><th>Price/unit</th><th>Units</th><th>Gross (aUEC)</th><th></th>
+        </tr></thead>
+        <tbody></tbody>
+        <tfoot></tfoot>
+      </table>
+      </div>
+      <button class="btn" onclick="addOre()">+ Add Material</button>
+      <p class="hint">Refined price is post-refining value. 1 SCU = 100 units. Quantanium is highest value but volatile &mdash; refine fast.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="ships">
+    <div class="card">
+      <span class="tag">Fleet</span>
+      <h2>Ship Comparison</h2>
+      <p class="desc">Cargo, crew, role and price. Click a column header to sort. Edit any cell or add your own ship.</p>
+      <div class="scrollx">
+      <table class="tbl" id="s_tbl">
+        <thead><tr>
+          <th data-s="0">Ship</th><th data-s="1">Mfr</th><th data-s="2">Role</th>
+          <th data-s="3" class="num">Cargo SCU</th><th data-s="4" class="num">Crew</th>
+          <th data-s="5" class="num">Price (aUEC)</th><th class="num">aUEC / SCU</th><th></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      </div>
+      <button class="btn" onclick="addShip()">+ Add Ship</button>
+      <p class="hint">In-game aUEC prices fluctuate with patches; verify against the <a href="https://starcitizen.tools/" target="_blank">Star Citizen Wiki</a>. Salvage/mining ships included.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="loadout">
+    <div class="card">
+      <span class="tag">Combat</span>
+      <h2>Loadout / DPS Planner</h2>
+      <p class="desc">Enter each weapon's damage, fire rate and mount count. Sustained DPS = damage x rounds/sec x mounts. Time-to-kill auto-calculates.</p>
+      <div class="io">
+        <div class="field"><label>Target HP (shield + hull)</label><input id="l_hp" type="number" value="10000"></div>
+      </div>
+      <div class="scrollx">
+      <table class="tbl" id="l_tbl">
+        <thead><tr>
+          <th>Weapon</th><th class="num">Size</th><th class="num">Mounts</th><th class="num">Dmg/shot</th>
+          <th class="num">Rounds/s</th><th class="num">DPS</th><th>Type</th><th></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      </div>
+      <button class="btn amber" onclick="addWep()">+ Add Weapon</button>
+      <div class="kpi">
+        <div class="kpibox"><div class="k">Total Sustained DPS</div><div class="v" id="l_dps">0</div></div>
+        <div class="kpibox"><div class="k">Time to Kill (s)</div><div class="v" id="l_ttk">0</div></div>
+      </div>
+      <p class="hint">Set mounts to 0 for weapons you aren't running. Pull weapon stats from Erkul or in-game.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="log">
+    <div class="card">
+      <span class="tag">Ledger</span>
+      <h2>Run Log</h2>
+      <p class="desc">Record each run. Totals update live and your log is saved in this browser automatically.</p>
+      <div class="scrollx">
+      <table class="tbl" id="g_tbl">
+        <thead><tr>
+          <th>Date</th><th>Activity</th><th>Target</th><th>Ship</th>
+          <th class="num">Revenue</th><th class="num">Cost</th><th class="num">Profit</th><th></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      </div>
+      <button class="btn" onclick="addLog()">+ Add Run</button>
+      <div class="kpi">
+        <div class="kpibox"><div class="k">Total Profit</div><div class="v" id="g_profit">0</div></div>
+        <div class="kpibox"><div class="k">Total Revenue</div><div class="v" id="g_rev">0</div></div>
+        <div class="kpibox"><div class="k">Best Run</div><div class="v" id="g_best">0</div></div>
+        <div class="kpibox"><div class="k">Runs Logged</div><div class="v" id="g_count">0</div></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    MOBIGLAS // CITIZEN COMPANION &nbsp;&middot;&nbsp; Unofficial fan tool &nbsp;&middot;&nbsp; Not affiliated with Cloud Imperium Games<br>
+    Verify all prices against <a href="https://uexcorp.space/" target="_blank">UEX</a> / <a href="https://sc-trade.tools/" target="_blank">SC-Trade</a> &middot; o7
+  </footer>
+</div>
+
+<script>
+const fmt = n => isFinite(n)? Math.round(n).toLocaleString('en-US') : '—';
+const $ = s => document.querySelector(s);
+
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active'); $('#'+t.dataset.p).classList.add('active');
+});
+
+setInterval(()=>{const d=new Date();$('#clock').textContent=d.toISOString().slice(11,19)+' UTC';},1000);
+
+/* TRADE */
+const tradeSeed=[
+ ['Medical Supplies','Grim HEX',18,'microTech',27],
+ ['Titanium','HUR-L1',36.5,'ARC-L1',43],
+ ['Agricium','Lyria',115,'Crusader',136],
+ ['Laranite','Refinery',27,'CRU-L1',30.5],
+ ['Gold','Refinery',6100,'Area18',6450],
+ ['Quantanium','Refinery',88,'Best term.',97],
+];
+function tradeRow(d){
+  const tr=document.createElement('tr');
+  tr.innerHTML=
+   '<td><input type="text" value="'+d[0]+'"></td>'+
+   '<td><input type="text" value="'+d[1]+'"></td>'+
+   '<td><input type="number" class="num" value="'+d[2]+'"></td>'+
+   '<td><input type="text" value="'+d[3]+'"></td>'+
+   '<td><input type="number" class="num" value="'+d[4]+'"></td>'+
+   '<td class="calc c_units">0</td><td class="calc c_pu">0</td>'+
+   '<td class="calc c_tot">0</td><td class="calc c_hr">0</td>'+
+   '<td class="del">&#10005;</td>';
+  tr.querySelectorAll('input').forEach(i=>i.oninput=calcTrade);
+  tr.querySelector('.del').onclick=()=>{tr.remove();calcTrade();};
+  return tr;
+}
+function addTrade(){$('#t_tbl tbody').appendChild(tradeRow(['New commodity','',0,'',0]));calcTrade();}
+function calcTrade(){
+  const cargo=+$('#t_cargo').value||0, cap=+$('#t_cap').value||0, time=+$('#t_time').value||1;
+  let best=-Infinity, bestEl=null;
+  $('#t_tbl tbody').querySelectorAll('tr').forEach(tr=>{
+    const inp=tr.querySelectorAll('input');
+    const buy=+inp[2].value||0, sell=+inp[4].value||0;
+    const units=buy>0?Math.min(cap/buy,cargo*100):0;
+    const pu=sell-buy, tot=pu*units, hr=tot/(time/60);
+    tr.querySelector('.c_units').textContent=fmt(units);
+    tr.querySelector('.c_pu').textContent=fmt(pu);
+    tr.querySelector('.c_tot').textContent=fmt(tot);
+    const hrEl=tr.querySelector('.c_hr'); hrEl.textContent=fmt(hr); hrEl.classList.remove('best');
+    if(hr>best){best=hr;bestEl=hrEl;}
+  });
+  if(bestEl&&isFinite(best))bestEl.classList.add('best');
+}
+
+/* MINING */
+const oreSeed=[
+ ['Quantanium','S',10,97],['Bexalite','A',20,42],['Taranite','A',20,35],
+ ['Laranite','B',30,30.5],['Agricium','B',30,26],['Hephaestanite','C',30,15],
+ ['Titanium','C',40,8],['Quartz','D',40,3.5],
+];
+function oreRow(d){
+  const tr=document.createElement('tr');
+  const opts=['S','A','B','C','D'].map(t=>'<option '+(t==d[1]?'selected':'')+'>'+t+'</option>').join('');
+  tr.innerHTML=
+   '<td><input type="text" value="'+d[0]+'"></td>'+
+   '<td><select class="tiersel">'+opts+'</select></td>'+
+   '<td><input type="number" class="num" value="'+d[2]+'"></td>'+
+   '<td><input type="number" class="num" value="'+d[3]+'"></td>'+
+   '<td class="calc c_u">0</td><td class="calc c_g">0</td><td class="del">&#10005;</td>';
+  tr.querySelectorAll('input,select').forEach(i=>i.oninput=calcMine);
+  tr.querySelector('.del').onclick=()=>{tr.remove();calcMine();};
+  return tr;
+}
+function addOre(){$('#m_tbl tbody').appendChild(oreRow(['New ore','C',0,0]));calcMine();}
+function calcMine(){
+  let gross=0;
+  $('#m_tbl tbody').querySelectorAll('tr').forEach(tr=>{
+    const inp=tr.querySelectorAll('input');
+    const scu=+inp[0].value||0, price=+inp[1].value||0, units=scu*100, g=units*price;
+    tr.querySelector('.c_u').textContent=fmt(units);
+    tr.querySelector('.c_g').textContent=fmt(g);
+    gross+=g;
+    const sel=tr.querySelector('.tiersel'); sel.className='tiersel '+sel.value;
+  });
+  const cost=+$('#m_cost').value||0;
+  $('#m_tbl tfoot').innerHTML=
+   '<tr class="total"><td colspan="5" class="lbl">Gross Total</td><td class="val">'+fmt(gross)+'</td><td></td></tr>'+
+   '<tr class="total"><td colspan="5" class="lbl">Net After Refining</td><td class="val">'+fmt(gross-cost)+'</td><td></td></tr>';
+}
+
+/* SHIPS */
+let ships=[
+ ['Cutlass Black','Drake','Multi / starter',46,3,1385000],
+ ['Freelancer MAX','MISC','Hauler',120,2,2300000],
+ ['Mercury Star Runner','Crusader','Data / cargo',114,4,5200000],
+ ['Constellation Taurus','RSI','Cargo / multi',174,4,5100000],
+ ['Hercules C2','Crusader','Heavy freight',696,5,12500000],
+ ['Caterpillar','Drake','Bulk hauler',576,5,9000000],
+ ['Prospector','MISC','Solo mining',32,1,2061000],
+ ['MOLE','ARGO','Multi mining',96,4,5130000],
+ ['Vulture','Drake','Solo salvage',12,1,2500000],
+ ['Reclaimer','Aegis','Heavy salvage',420,5,9700000],
+];
+let sortCol=3, sortDir=-1;
+function renderShips(){
+  const tb=$('#s_tbl tbody'); tb.innerHTML='';
+  ships.forEach((s,idx)=>{
+    const tr=document.createElement('tr');
+    const per=s[3]>0?s[5]/s[3]:0;
+    tr.innerHTML=
+     '<td><input type="text" value="'+s[0]+'"></td>'+
+     '<td><input type="text" value="'+s[1]+'"></td>'+
+     '<td><input type="text" value="'+s[2]+'"></td>'+
+     '<td><input type="number" class="num" value="'+s[3]+'"></td>'+
+     '<td><input type="number" class="num" value="'+s[4]+'"></td>'+
+     '<td><input type="number" class="num" value="'+s[5]+'"></td>'+
+     '<td class="calc">'+fmt(per)+'</td><td class="del">&#10005;</td>';
+    const inp=tr.querySelectorAll('input');
+    inp.forEach((el,i)=>el.oninput=()=>{
+      s[i]=i>=3?(+el.value||0):el.value;
+      tr.querySelector('.calc').textContent=fmt(s[3]>0?s[5]/s[3]:0);
+    });
+    tr.querySelector('.del').onclick=()=>{ships.splice(idx,1);renderShips();};
+    tb.appendChild(tr);
+  });
+}
+function addShip(){ships.push(['New Ship','—','Role',0,1,0]);renderShips();}
+document.querySelectorAll('#s_tbl th[data-s]').forEach(th=>th.onclick=()=>{
+  const c=+th.dataset.s; sortDir=(c===sortCol)?-sortDir:1; sortCol=c;
+  ships.sort((a,b)=>{const x=a[c],y=b[c];return (typeof x==='number'?x-y:(''+x).localeCompare(y))*sortDir;});
+  renderShips();
+});
+
+/* LOADOUT */
+const wepSeed=[
+ ['Attrition-3',3,2,170,5,'Ballistic Repeater'],
+ ['Sawbuck S3',3,1,240,3.5,'Ballistic Cannon'],
+ ['CF-337 Panther',3,0,150,8,'Laser Repeater'],
+ ['Size 4 example',4,0,400,4,'Laser Cannon'],
+];
+function wepRow(d){
+  const tr=document.createElement('tr');
+  tr.innerHTML=
+   '<td><input type="text" value="'+d[0]+'"></td>'+
+   '<td><input type="number" class="num" value="'+d[1]+'"></td>'+
+   '<td><input type="number" class="num" value="'+d[2]+'"></td>'+
+   '<td><input type="number" class="num" value="'+d[3]+'"></td>'+
+   '<td><input type="number" class="num" value="'+d[4]+'"></td>'+
+   '<td class="calc c_dps">0</td>'+
+   '<td><input type="text" value="'+d[5]+'"></td><td class="del">&#10005;</td>';
+  tr.querySelectorAll('input').forEach(i=>i.oninput=calcWep);
+  tr.querySelector('.del').onclick=()=>{tr.remove();calcWep();};
+  return tr;
+}
+function addWep(){$('#l_tbl tbody').appendChild(wepRow(['New weapon',3,1,0,0,'']));calcWep();}
+function calcWep(){
+  let total=0;
+  $('#l_tbl tbody').querySelectorAll('tr').forEach(tr=>{
+    const inp=tr.querySelectorAll('input');
+    const mounts=+inp[2].value||0, dmg=+inp[3].value||0, rps=+inp[4].value||0;
+    const dps=mounts*dmg*rps;
+    tr.querySelector('.c_dps').textContent=fmt(dps);
+    total+=dps;
+  });
+  const hp=+$('#l_hp').value||0;
+  $('#l_dps').textContent=fmt(total);
+  $('#l_ttk').textContent=total>0?(hp/total).toFixed(1):'—';
+}
+
+/* LOG */
+const LKEY='sc_runlog_v1';
+let logs=JSON.parse(localStorage.getItem(LKEY)||'null')||[
+ ['2026-06-29','Trade','Agricium','C2',6528000,5520000],
+ ['2026-06-29','Mining','Quantanium','Prospector',410000,0],
+ ['2026-06-30','Bounty','ERT','Vanguard',185000,0],
+];
+function saveLogs(){localStorage.setItem(LKEY,JSON.stringify(logs));}
+function renderLog(){
+  const tb=$('#g_tbl tbody'); tb.innerHTML='';
+  logs.forEach((r,idx)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=
+     '<td><input type="text" value="'+r[0]+'"></td>'+
+     '<td><input type="text" value="'+r[1]+'"></td>'+
+     '<td><input type="text" value="'+r[2]+'"></td>'+
+     '<td><input type="text" value="'+r[3]+'"></td>'+
+     '<td><input type="number" class="num" value="'+r[4]+'"></td>'+
+     '<td><input type="number" class="num" value="'+r[5]+'"></td>'+
+     '<td class="calc c_p">0</td><td class="del">&#10005;</td>';
+    const inp=tr.querySelectorAll('input');
+    inp.forEach((el,i)=>el.oninput=()=>{r[i]=i>=4?(+el.value||0):el.value;calcLog();saveLogs();});
+    tr.querySelector('.del').onclick=()=>{logs.splice(idx,1);renderLog();saveLogs();};
+    tb.appendChild(tr);
+  });
+  calcLog();
+}
+function addLog(){const d=new Date().toISOString().slice(0,10);logs.push([d,'Trade','','',0,0]);renderLog();saveLogs();}
+function calcLog(){
+  let profit=0,rev=0,best=-Infinity;
+  $('#g_tbl tbody').querySelectorAll('tr').forEach((tr,i)=>{
+    const p=(+logs[i][4]||0)-(+logs[i][5]||0);
+    tr.querySelector('.c_p').textContent=fmt(p);
+    profit+=p; rev+=(+logs[i][4]||0); if(p>best)best=p;
+  });
+  $('#g_profit').textContent=fmt(profit);
+  $('#g_rev').textContent=fmt(rev);
+  $('#g_best').textContent=logs.length?fmt(best):'0';
+  $('#g_count').textContent=logs.length;
+}
+
+/* init */
+tradeSeed.forEach(d=>$('#t_tbl tbody').appendChild(tradeRow(d)));calcTrade();
+oreSeed.forEach(d=>$('#m_tbl tbody').appendChild(oreRow(d)));calcMine();
+renderShips();
+wepSeed.forEach(d=>$('#l_tbl tbody').appendChild(wepRow(d)));calcWep();
+renderLog();
+$('#t_cargo').oninput=$('#t_cap').oninput=$('#t_time').oninput=calcTrade;
+$('#m_cost').oninput=calcMine;
+$('#l_hp').oninput=calcWep;
+</script>
+</body>
+</html>
