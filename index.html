@@ -101,6 +101,9 @@ footer{text-align:center;color:var(--muted);font-size:11px;letter-spacing:2px;ma
 footer a{color:var(--cyan-dim);text-decoration:none}
 ::-webkit-scrollbar{height:8px;width:8px}::-webkit-scrollbar-thumb{background:var(--line)}
 .scrollx{overflow-x:auto}
+.webrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px;position:relative}
+.websearch{width:auto;min-width:240px;flex:0 0 auto;color:var(--text)}
+.webstat{font-size:11px;color:var(--amber);letter-spacing:1px;font-family:'Consolas',monospace;margin-left:4px}
 </style>
 </head>
 <body>
@@ -149,7 +152,9 @@ footer a{color:var(--cyan-dim);text-decoration:none}
       </table>
       </div>
       <button class="btn" onclick="addTrade()">+ Add Route</button>
-      <p class="hint">1 SCU = 100 units. Units are capped by capital / buy price and cargo x 100. Prices shift constantly &mdash; pull current numbers from
+      <button class="btn amber" onclick="autofillPrices()">&#8635; Auto-fill prices (UEX live)</button>
+      <span id="t_status" class="webstat"></span>
+      <p class="hint">1 SCU = 100 units. Units are capped by capital / buy price and cargo x 100. Auto-fill pulls the best buy/sell across all terminals from UEX. Also verify via
         <a href="https://uexcorp.space/" target="_blank">UEX Corp</a>, <a href="https://sc-trade.tools/" target="_blank">SC-Trade</a> or <a href="https://hubcitizen.com/commodities" target="_blank">HubCitizen</a>.</p>
     </div>
   </section>
@@ -191,8 +196,15 @@ footer a{color:var(--cyan-dim);text-decoration:none}
         <tbody></tbody>
       </table>
       </div>
-      <button class="btn" onclick="addShip()">+ Add Ship</button>
-      <p class="hint">In-game aUEC prices fluctuate with patches; verify against the <a href="https://starcitizen.tools/" target="_blank">Star Citizen Wiki</a>. Salvage/mining ships included.</p>
+      <div class="webrow">
+        <input list="shipList" id="shipSearch" type="text" placeholder="Search ship name (e.g. Caterpillar)" class="websearch" onfocus="ensureShips()">
+        <datalist id="shipList"></datalist>
+        <button class="btn" onclick="addShipFromWeb()">+ Add from FleetYards</button>
+        <button class="btn" onclick="addShip()">+ Blank row</button>
+        <button class="btn amber" onclick="refreshShipsFromWeb()">&#8635; Update rows from web</button>
+        <span id="s_status" class="webstat"></span>
+      </div>
+      <p class="hint">Auto-fill pulls cargo, crew, role, manufacturer and in-game aUEC price live from <a href="https://fleetyards.net/" target="_blank">FleetYards</a> (Star Citizen Ship Matrix). Salvage/mining ships included.</p>
     </div>
   </section>
 
@@ -213,7 +225,13 @@ footer a{color:var(--cyan-dim);text-decoration:none}
         <tbody></tbody>
       </table>
       </div>
-      <button class="btn amber" onclick="addWep()">+ Add Weapon</button>
+      <div class="webrow">
+        <input list="wepList" id="wepSearch" type="text" placeholder="Search weapon name (e.g. Attrition)" class="websearch" onfocus="ensureWeapons()">
+        <datalist id="wepList"></datalist>
+        <button class="btn amber" onclick="addWepFromWeb()">+ Add from SC Wiki</button>
+        <button class="btn amber" onclick="addWep()">+ Blank row</button>
+        <span id="l_status" class="webstat"></span>
+      </div>
       <div class="kpi">
         <div class="kpibox"><div class="k">Total Sustained DPS</div><div class="v" id="l_dps">0</div></div>
         <div class="kpibox"><div class="k">Time to Kill (s)</div><div class="v" id="l_ttk">0</div></div>
@@ -460,6 +478,113 @@ function calcLog(){
   $('#g_rev').textContent=fmt(rev);
   $('#g_best').textContent=logs.length?fmt(best):'0';
   $('#g_count').textContent=logs.length;
+}
+
+/* ---------- WEB AUTO-FILL (on-demand) ---------- */
+const cache={};
+function setStat(id,msg){const e=document.getElementById(id);if(e)e.textContent=msg;}
+
+/* Commodities: best buy (min) / best sell (max) across all terminals, live from UEX */
+async function ensureComm(){
+  if(cache.comm)return cache.comm;
+  setStat('t_status','Loading UEX prices…');
+  const [cr,pr]=await Promise.all([
+    fetch('https://api.uexcorp.space/2.0/commodities').then(r=>r.json()),
+    fetch('https://api.uexcorp.space/2.0/commodities_prices_all').then(r=>r.json())
+  ]);
+  const id2name={}; (cr.data||[]).forEach(c=>id2name[c.id]=c.name);
+  const agg={};
+  (pr.data||[]).forEach(p=>{
+    const nm=id2name[p.id_commodity]; if(!nm)return;
+    const a=agg[nm]||(agg[nm]={buy:Infinity,sell:0});
+    if(p.price_buy>0)a.buy=Math.min(a.buy,p.price_buy);
+    if(p.price_sell>0)a.sell=Math.max(a.sell,p.price_sell);
+  });
+  const map={};
+  Object.keys(agg).forEach(n=>{const a=agg[n];map[n.toLowerCase()]={buy:isFinite(a.buy)?a.buy:0,sell:a.sell,name:n};});
+  cache.comm=map; return map;
+}
+async function autofillPrices(){
+  try{
+    const m=await ensureComm(); let hit=0;
+    document.querySelectorAll('#t_tbl tbody tr').forEach(tr=>{
+      const inp=tr.querySelectorAll('input');
+      const key=(inp[0].value||'').toLowerCase().trim();
+      let d=m[key]; if(!d){const k=Object.keys(m).find(x=>x.includes(key)&&key.length>2);if(k)d=m[k];}
+      if(d){ if(d.buy)inp[2].value=d.buy; if(d.sell)inp[4].value=d.sell; hit++; }
+    });
+    calcTrade();
+    setStat('t_status',hit+' matched · best buy/sell across terminals · UEX '+new Date().toLocaleTimeString());
+  }catch(e){ setStat('t_status','Error: '+e.message); }
+}
+
+/* Ships from FleetYards */
+async function ensureShips(){
+  if(cache.ships)return cache.ships;
+  setStat('s_status','Loading ships from FleetYards…');
+  let page=1,all=[],more=true;
+  while(more&&page<=12){
+    const j=await fetch('https://api.fleetyards.net/v1/models?perPage=60&page='+page).then(r=>r.json());
+    const items=j.items||[];
+    items.forEach(it=>all.push({
+      name:it.name,
+      manu:(it.manufacturer&&it.manufacturer.name)||'—',
+      role:it.classificationLabel||it.classification||'—',
+      cargo:(it.metrics&&it.metrics.cargo)||0,
+      crew:(it.crew&&it.crew.max)||1,
+      price:it.price||0
+    }));
+    more=items.length>0; page++;
+  }
+  cache.ships=all;
+  const dl=document.getElementById('shipList');
+  if(dl)dl.innerHTML=all.map(s=>'<option value="'+s.name.replace(/"/g,'&quot;')+'">').join('');
+  setStat('s_status',all.length+' ships available');
+  return all;
+}
+function matchShip(list,q){q=q.toLowerCase().trim();return list.find(s=>s.name.toLowerCase()===q)||list.find(s=>s.name.toLowerCase().includes(q));}
+async function addShipFromWeb(){
+  try{const list=await ensureShips();const q=document.getElementById('shipSearch').value;
+    if(!q){setStat('s_status','Type a ship name first');return;}
+    const s=matchShip(list,q); if(!s){setStat('s_status','No match for "'+q+'"');return;}
+    ships.push([s.name,s.manu,s.role,s.cargo,s.crew,s.price]); renderShips();
+    setStat('s_status','Added '+s.name+' · '+fmt(s.cargo)+' SCU · '+fmt(s.price)+' aUEC');
+  }catch(e){setStat('s_status','Error: '+e.message);}
+}
+async function refreshShipsFromWeb(){
+  try{const list=await ensureShips();let hit=0;
+    ships.forEach(row=>{const s=matchShip(list,row[0]);if(s){row[1]=s.manu;row[2]=s.role;row[3]=s.cargo;row[4]=s.crew;row[5]=s.price;hit++;}});
+    renderShips(); setStat('s_status',hit+'/'+ships.length+' rows updated from FleetYards');
+  }catch(e){setStat('s_status','Error: '+e.message);}
+}
+
+/* Ship weapons from Star Citizen Wiki */
+async function ensureWeapons(){
+  if(cache.weps)return cache.weps;
+  setStat('l_status','Loading weapons from SC Wiki…');
+  let all=[],page=1,more=true;
+  while(more&&page<=8){
+    const j=await fetch('https://api.star-citizen.wiki/api/v2/items?filter[type]=WeaponGun&limit=100&page='+page).then(r=>r.json());
+    const data=j.data||[];
+    data.forEach(it=>{const vw=it.vehicle_weapon;if(vw&&vw.damage_per_shot&&vw.rpm)all.push({name:it.name,size:it.size||0,dmg:+vw.damage_per_shot,rpm:+vw.rpm,type:vw.type||''});});
+    more=data.length>0; page++;
+  }
+  // de-dupe by name
+  const seen={};all=all.filter(w=>seen[w.name]?false:(seen[w.name]=1));
+  cache.weps=all;
+  const dl=document.getElementById('wepList');
+  if(dl)dl.innerHTML=all.map(w=>'<option value="'+w.name.replace(/"/g,'&quot;')+'">').join('');
+  setStat('l_status',all.length+' weapons available');
+  return all;
+}
+async function addWepFromWeb(){
+  try{const list=await ensureWeapons();const q=document.getElementById('wepSearch').value;
+    if(!q){setStat('l_status','Type a weapon name first');return;}
+    const w=list.find(x=>x.name.toLowerCase()===q.toLowerCase())||list.find(x=>x.name.toLowerCase().includes(q.toLowerCase()));
+    if(!w){setStat('l_status','No match for "'+q+'"');return;}
+    $('#l_tbl tbody').appendChild(wepRow([w.name,w.size,1,w.dmg,+(w.rpm/60).toFixed(2),w.type]));calcWep();
+    setStat('l_status','Added '+w.name+' · '+fmt(w.dmg)+' dmg @ '+w.rpm+' rpm');
+  }catch(e){setStat('l_status','Error: '+e.message);}
 }
 
 /* init */
